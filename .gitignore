@@ -20,3 +20,8 @@ src/aclocal.m4
 # VS Code Studio stuff
 .vscode
 *.code-workspace
+
+*.h5
+*.pdf
+*.dat
+*.plt
