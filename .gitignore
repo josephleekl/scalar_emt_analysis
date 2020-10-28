@@ -1,0 +1,22 @@
+# builds
+src/build
+
+# Apple stuffs
+*.xcodeproj
+.DS_Store
+
+# VIM
+*.swp
+
+# autotools
+src/autom4te.cache
+src/*.in
+src/*.in~
+src/config.h*
+src/configure
+src/.buildutils
+src/aclocal.m4
+
+# VS Code Studio stuff
+.vscode
+*.code-workspace
