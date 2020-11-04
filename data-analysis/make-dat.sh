@@ -1,22 +1,28 @@
 #!/usr/bin/env bash
-
+#
+###############################################
 #
 # Preprocess data used in flowtime fit and global fit
 #
+###############################################
 
-
+mkdir -p data/processed_data/fft_correlator
+mkdir -p data/processed_data/flowtime_fit_data
+mkdir -p data/processed_data/global_fit_data/mass
+mkdir -p plots/flowtime-fit
+mkdir -p plots/global-fit
 
 echo "Performing Fourier transform on 2-point functions..."
 find ./data/raw_data -name *wilson_twopt*.h5 -execdir latan-sample-ft -o ../../../../processed_data/fft_correlator/fft_{} {} \; 1>/dev/null
 
 echo "Preprocessing c3 data against flowtime..."
 for L in 64 128 256; do
-emt-write-flowtime-c3 0.1 ${L} -0.0305
- /Users/s1854162/Desktop/wilsonflow/code_package/scalar_emt_analysis/src/build/emt-write-flowtime-c3 0.1 ${L} -0.031
- /Users/s1854162/Desktop/wilsonflow/code_package/scalar_emt_analysis/src/build/emt-write-flowtime-c3 0.2 ${L} -0.061
- /Users/s1854162/Desktop/wilsonflow/code_package/scalar_emt_analysis/src/build/emt-write-flowtime-c3 0.2 ${L} -0.062
- /Users/s1854162/Desktop/wilsonflow/code_package/scalar_emt_analysis/src/build/emt-write-flowtime-c3 0.3 ${L} -0.091
- /Users/s1854162/Desktop/wilsonflow/code_package/scalar_emt_analysis/src/build/emt-write-flowtime-c3 0.3 ${L} -0.092
+ emt-write-flowtime-c3 0.1 ${L} -0.0305
+ emt-write-flowtime-c3 0.1 ${L} -0.031
+ emt-write-flowtime-c3 0.2 ${L} -0.061
+ emt-write-flowtime-c3 0.2 ${L} -0.062
+ emt-write-flowtime-c3 0.3 ${L} -0.091
+ emt-write-flowtime-c3 0.3 ${L} -0.092
 done
   
 echo "Generating renormalised mass data..."

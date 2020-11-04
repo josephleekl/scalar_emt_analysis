@@ -16,17 +16,16 @@ int main(int argc, char *argv[])
   // parse command line/options ////////////////////////////////////////////////
   OptParser              opt;
   bool                   parsed;
-  string                 manFilename, g, L, m2, corrDir;
-
+  string                 g, L, m2;
+  double                 N;
   
   opt.addOption("" , "help"      , OptParser::OptType::trigger, true,
                 "show this help message and exit");
   parsed = opt.parse(argc, argv);
     if (!parsed or (opt.getArgs().size() != 3) or opt.gotOption("help"))
     {
-        cerr << "NEED TO UPDATE: usage: " << argv[0] << " g, L, m2 " << endl;
-        cerr << "NO Parameter file fit symbols: "
-             << "NO  x_0, m2, L, t (flowtime), mcrit " << endl;
+        cerr << "Usage: " << argv[0] << " <g> <L> <m^2> " << endl;
+
         cerr << endl
              << "Possible options:" << endl
              << opt << endl;
@@ -34,19 +33,23 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
   
-    g = opt.getArgs()[0];
-    L = opt.getArgs()[1];
+    g  = opt.getArgs()[0];
+    L  = opt.getArgs()[1];
     m2 = opt.getArgs()[2];
+    N  = 2.0;
 
+    // Data prefix ///////////////////////////////////////////////////////
+    string            corrDir, infile_prefix, outfile_prefix, outfile_dir;
+    vector<string>    flowtime_list;
+    vector<Index>     q_list;
+    
+    corrDir           = "data/processed_data/fft_correlator/";
+    infile_prefix     = corrDir+"fft_g"+g+"_L"+L+"_m2"+m2+"_wilson_twopt_";
+    outfile_prefix    = "c3_g"+g+"_L"+L+"_m2"+m2;
+    outfile_dir       = "data/processed_data/flowtime_fit_data";
+    
+    // specify range of flowtime and momentum for ensembles////////////////
 
-  // load and trace data ///////////////////////////////////////////////////////
-    //corrDir = "g"+g+"/L"+L+"/m2"+m2+"/";
-    corrDir = "data/processed_data/fft_correlator/";
-    string infile_prefix = corrDir+"fft_g"+g+"_L"+L+"_m2"+m2+"_wilson_twopt_";
-    string outfile_prefix = "c3_g"+g+"_L"+L+"_m2"+m2;
-    string outfile_dir = "data/processed_data/flowtime_fit_data";
-    std::vector<string> flowtime_list;
-    std::vector<Index>  q_list;
     if (g == "0.1")
     {
         flowtime_list = {"1.0", "2.0", "3.0", "4.0", "5.0", "6.0", "7.0", "8.0", "9.0"};
@@ -69,67 +72,60 @@ int main(int argc, char *argv[])
         q_list = {4};
     }
     
-    cout << "g: " << g << " |    L: " << L << " |    m2: " << m2 << endl;
-    Index nSample = 2000;
-    DMatSample out(nSample, flowtime_list.size(), 1);
-    std::vector<DMatSample> out_dir_avg(q_list.size(), out);
-    DMatSample emtc;
-    DMatSample trphi; 
-    Index counter;
+    // read and re-arrange data//////////////////////////////////////////
+    Index                   nSample = 2000;
+    DMatSample              out(nSample, flowtime_list.size(), 1), emtc, trphi;
+    vector<DMatSample>      out_dir_avg(q_list.size(), out);
 
-    //dir0
+    // direction 0
     for (Index q=0; q < q_list.size(); ++q){
         for (Index t=0; t < flowtime_list.size(); ++t)
         {
-            emtc = Io::load<DMatSample>(infile_prefix+"emtc_0_0_wilson_"+flowtime_list[t]+"_trphi_2_"+to_string(q_list[q])+"_0.h5");
+            emtc  = Io::load<DMatSample>(infile_prefix+"emtc_0_0_wilson_"+flowtime_list[t]+"_trphi_2_"+to_string(q_list[q])+"_0.h5");
             trphi = Io::load<DMatSample>(infile_prefix+"trphi_2_wilson_"+flowtime_list[t]+"_trphi_2_"+to_string(q_list[q])+"_0.h5");
             for (Index s = central; s < nSample; ++s)
             {
-                out[s](t) = emtc[s](0)/(2.0*trphi[s](0));
+                out[s](t) = emtc[s](0)/(N*trphi[s](0));
                 out_dir_avg[q][s](t) = out[s](t)/3;
             }
         }
         ;
     }
-    cout << "nsample/size = " << emtc.size() << endl;
-    cout << "Complete dir 0" << endl;
-    //dir1
+
+    // direction 1
     for (Index q=0; q < q_list.size(); ++q){
         for (Index t=0; t < flowtime_list.size(); ++t)
         {
-            emtc = Io::load<DMatSample>(infile_prefix+"emtc_1_1_wilson_"+flowtime_list[t]+"_trphi_2_0_"+to_string(q_list[q])+".h5");
+            emtc  = Io::load<DMatSample>(infile_prefix+"emtc_1_1_wilson_"+flowtime_list[t]+"_trphi_2_0_"+to_string(q_list[q])+".h5");
             trphi = Io::load<DMatSample>(infile_prefix+"trphi_2_wilson_"+flowtime_list[t]+"_trphi_2_0_"+to_string(q_list[q])+".h5");
             for (Index s = central; s < nSample; ++s)
             {
-                out[s](t) = emtc[s](0)/(2.0*trphi[s](0));
+                out[s](t) = emtc[s](0)/(N*trphi[s](0));
                 out_dir_avg[q][s](t) += out[s](t)/3;
             }
         }
     }
-    cout << "Complete dir 1" << endl;
 
-    //dir2
+    // direction 2
     for (Index q=0; q < q_list.size(); ++q){
         for (Index t=0; t < flowtime_list.size(); ++t)
         {
-            emtc = Io::load<DMatSample>(infile_prefix+"emtc_2_2_wilson_"+flowtime_list[t]+"_trphi_2_0_0.h5");
+            emtc  = Io::load<DMatSample>(infile_prefix+"emtc_2_2_wilson_"+flowtime_list[t]+"_trphi_2_0_0.h5");
             trphi = Io::load<DMatSample>(infile_prefix+"trphi_2_wilson_"+flowtime_list[t]+"_trphi_2_0_0.h5");
             for (Index s = central; s < nSample; ++s)
             {
-                out[s](t) = emtc[s](q_list[q])/(2.0*trphi[s](q_list[q]));
+                out[s](t) = emtc[s](q_list[q])/(N*trphi[s](q_list[q]));
                 out_dir_avg[q][s](t) += out[s](t)/3;
             }
         }
 
     }
-    cout << "Complete dir 2" << endl;
 
+    // direction average
     for (Index q=0; q < q_list.size(); ++q){
-
-        Io::save<DMatSample>(out_dir_avg[q], outfile_dir+"/"+outfile_prefix+"_mom_dir_avg_flowtime.h5");
-
+        Io::save<DMatSample>(out_dir_avg[q], outfile_dir+"/"+outfile_prefix+"_flowtime.h5");
     }
-    cout << "Complete avg" << endl;
+
 
   return EXIT_SUCCESS;
 }

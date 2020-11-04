@@ -1,4 +1,4 @@
-SHARED_CXXFLAGS =
+SHARED_CXXFLAGS = -Wall
 
 bin_PROGRAMS =          \
   emt-write-flowtime-c3 \

@@ -28,12 +28,11 @@ int main(int argc, char *argv[])
 {
     // parse arguments /////////////////////////////////////////////////////////
     OptParser            opt;
-    bool                 parsed, doPlot, doCorr, doPaperFit, savePlot;
-    string               g, L, m2, paramFileName, corrFileName, saveFileName, saveFilePrefix, savePlotPrefix, outFmt;
-    Index                shift, nPar, thinning;
-    double               ti, tf;
-    double               svdTol;
-    std::vector<double> corrFlowtimes;
+    bool                 parsed, doCorr, doPaperFit, savePlot;
+    string               g, L, m2, paramFileName;
+    Index                nPar;
+    double               ti, tf, svdTol;
+    vector<double>       corrFlowtimes;
     Minimizer::Verbosity verbosity;
     
 
@@ -54,16 +53,16 @@ int main(int argc, char *argv[])
     parsed = opt.parse(argc, argv);
     if (!parsed or (opt.getArgs().size() != 1) or opt.gotOption("help"))
     {
-        cerr << "usage: " << argv[0] << " <param_xml> <options> <correlator file>" << endl;
-        cerr << endl << "Possible options:" << endl << opt << endl;
+        cerr << "usage: " << argv[0] << " <parameter xml file> <options>" << endl;
+        cerr << endl << "Possible options: " << endl << opt << endl;
         
         return EXIT_FAILURE;
     }
-    paramFileName = opt.getArgs().front();
-    doPaperFit   = opt.gotOption("default");
-    svdTol       = opt.optionValue<double>("svd");
-    doCorr       = !opt.gotOption("uncorr");
-    savePlot     = opt.gotOption("save-plot");
+    paramFileName     = opt.getArgs().front();
+    doPaperFit        = opt.gotOption("default");
+    svdTol            = opt.optionValue<double>("svd");
+    doCorr            = !opt.gotOption("uncorr");
+    savePlot          = opt.gotOption("save-plot");
     switch (opt.optionValue<unsigned int>("v"))
     {
         case 0:
@@ -79,27 +78,32 @@ int main(int argc, char *argv[])
             cerr << "error: wrong verbosity level" << endl;
             return EXIT_FAILURE;
     }
-    Latan::XmlReader paramFile(paramFileName);
-    corrFileName = paramFile.getFirstValue<string>("filenames", "file");
-    corrFlowtimes = paramFile.getAllValues<double>("flowtimes", "t");
+
+    // read Parameter File ////////////////////////////////////////////////////
+    Latan::XmlReader   paramFile(paramFileName);
+    string             corrFileName, saveFileName, saveFilePrefix, savePlotPrefix;
+
+    corrFileName     = paramFile.getFirstValue<string>("filenames", "file");
+    corrFlowtimes    = paramFile.getAllValues<double>("flowtimes", "t");
+    
     if (doPaperFit)
     {
-      ti = paramFile.getFirstValue<double>("defaultfitrange", "min");
-      tf = paramFile.getFirstValue<double>("defaultfitrange", "max");
+      ti   = paramFile.getFirstValue<double>("defaultfitrange", "min");
+      tf   = paramFile.getFirstValue<double>("defaultfitrange", "max");
     }
     else
     {
-      ti = paramFile.getFirstValue<double>("customfitrange", "min");
-      tf = paramFile.getFirstValue<double>("customfitrange", "max");
+      ti   = paramFile.getFirstValue<double>("customfitrange", "min");
+      tf   = paramFile.getFirstValue<double>("customfitrange", "max");
     }
-    g = paramFile.getFirstValue<string>("spacing", "ag");
-    L = paramFile.getFirstValue<string>("volume", "L");
-    m2 = paramFile.getFirstValue<string>("mass", "m2");
-    saveFilePrefix = paramFile.getFirstValue<string>("savefiledir", "dir");
-    savePlotPrefix = paramFile.getFirstValue<string>("saveplotdir", "dir");
-    saveFileName = "c3-flowtime-fit-value_g"+g+"_L"+L+"_m2"+m2;
-    cout << "g: " << g << " | L: " << L << " | m2 = " << m2 << " | ti: " << ti<< " | tf: " << tf  << endl;
-    cout << "corrrelator file: " << corrFileName << endl;
+
+    g                = paramFile.getFirstValue<string>("spacing", "ag");
+    L                = paramFile.getFirstValue<string>("volume", "L");
+    m2               = paramFile.getFirstValue<string>("mass", "m2");
+    saveFilePrefix   = paramFile.getFirstValue<string>("savefiledir", "dir");
+    savePlotPrefix   = paramFile.getFirstValue<string>("saveplotdir", "dir");
+    saveFileName     = "c3-flowtime-fit-value_g"+g+"_L"+L+"_m2"+m2;
+    cout << "Fitting: g = " << g << "   |    L = " << L << "    |    m^2 = " << m2 << endl;
 
     // load correlator /////////////////////////////////////////////////////////
     DMatSample tmp, corr;
@@ -113,7 +117,7 @@ int main(int argc, char *argv[])
 
 
     
-    // make models /////////////////////////////////////////////////////////////
+    // make model /////////////////////////////////////////////////////////////
     DoubleModel mod;
     
     nPar        = 2;
@@ -130,33 +134,29 @@ int main(int argc, char *argv[])
     NloptMinimizer      globMin(NloptMinimizer::Algorithm::GN_CRS2_LM);
     MinuitMinimizer     locMin;
     vector<Minimizer *> unCorrMin{&globMin, &locMin};
-    std::vector<double> timeshift(nt);
+    vector<double>      timeshift(nt);
 
     timeshift = corrFlowtimes;
     FOR_STAT_ARRAY(tvec, s)
     {
-        //tvec[s] = DVec::LinSpaced(nt, 0, nt - 1);
         tvec[s] =  Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(timeshift.data(), timeshift.size());
 
     }
-    data.addXDim(nt, "t/a", true);
-    data.addYDim("C(t)");
+    data.addXDim(nt, "1/(g*sqrt(t))", true);
+    data.addYDim("c_3 + f_g");
     data.setUnidimData(tvec, corr);
-    // set parameter name ******************************************************
 
-    mod.parName().setName(0, "C_3");
-    mod.parName().setName(1, "Omega'");   
+    // set parameter name ///////////////////////////////////////////////////////
+    mod.parName().setName(0, "c_3");
+    mod.parName().setName(1, "Omega");   
 
-    // set initial values ******************************************************
-
+    // set initial values ///////////////////////////////////////////////////////
     init(0) = 0.05;
     init(1) = 1;
     
-    // set limits for minimisers ***********************************************
-
+    // set limits for minimisers ////////////////////////////////////////////////
     globMin.setLowLimit(0, 0.);
     globMin.setHighLimit(0, 10. * init(0));
-
     globMin.setLowLimit(1, 0.);
     globMin.setHighLimit(1, 10. * init(1));
 
@@ -169,7 +169,6 @@ int main(int argc, char *argv[])
     // fit /////////////////////////////////////////////////////////////////////
     
       SampleFitResult fit;
-
       setFitRange(data, ti, tf, nt);
       if (doCorr)
       {
@@ -197,13 +196,12 @@ int main(int argc, char *argv[])
         cout << "Saving c3 fit value to: " << saveFilePrefix << saveFileName <<".h5"<< endl;
         Io::save(fit, saveFilePrefix + saveFileName+".h5");
       }
-      // plots ***************************************************************
+      // plots //////////////////////////////////////////////////////////////
 
       if (savePlot)
       {
         Plot p;
 
-        //p << PlotRange(Axis::x, 0, nt - 1);
         p << Label("1/(g*sqrt(t))", Axis::x);
         p << Label("c_3 + f_g(g*sqrt(t))", Axis::y);
         p << Title("ag=" + g + "  N_L=" + L + "  m^2=" + m2);
@@ -211,7 +209,7 @@ int main(int argc, char *argv[])
 
         p << Color("rgb 'blue'") << PlotPredBand(fit.getModel(_), 0, corrFlowtimes.back() + 1);
         p << Color("rgb 'blue'") << PlotFunction(fit.getModel(), 0, corrFlowtimes.back() + 1);
-        p << Color("rgb 'red'") << PlotData(data.getData());
+        p << Color("rgb 'blue'") << PlotData(data.getData());
         cout << "Saving plot to: " << savePlotPrefix << saveFileName << endl;
         p.save(savePlotPrefix + saveFileName);
       }

@@ -16,15 +16,12 @@ using namespace Latan;
 int main(int argc, char *argv[])
 {
     // parse arguments /////////////////////////////////////////////////////////
-    OptParser opt;
-    bool parsed, doPlot, doHeatmap, doCorr, fold, doGlob, doScan, savePlot;
-    string outFmt, paramFileName, savePlotPrefix;
-    Index thinning;
-    double svdTol;
-    Minimizer::Verbosity verbosity;
+    OptParser              opt;
+    bool                   parsed, doCorr, doGlob, savePlot;
+    string                 paramFileName, savePlotPrefix;
+    double                 svdTol;
+    Minimizer::Verbosity   verbosity;
 
-    opt.addOption("t", "thinning", OptParser::OptType::value, true,
-                  "thinning of the time interval", "1");
     opt.addOption("", "svd", OptParser::OptType::value, true,
                   "singular value elimination threshold", "0.");
     opt.addOption("v", "verbosity", OptParser::OptType::value, true,
@@ -35,16 +32,12 @@ int main(int argc, char *argv[])
                   "use global minimiser first");
     opt.addOption("s", "save-plot", OptParser::OptType::trigger, true,
                   "saves the source and .pdf", "");
-    opt.addOption("", "scan", OptParser::OptType::trigger, true,
-                "scan all possible fit ranges within [ti,tf]");
     opt.addOption("", "help", OptParser::OptType::trigger, true,
                   "show this help message and exit");
     parsed = opt.parse(argc, argv);
     if (!parsed or (opt.getArgs().size() != 1) or opt.gotOption("help"))
     {
         cerr << "usage: " << argv[0] << " <parameter file> <options> " << endl;
-        cerr << "Parameter file fit symbols: "
-             << "" << endl;
         cerr << endl
              << "Possible options:" << endl
              << opt << endl;
@@ -53,7 +46,6 @@ int main(int argc, char *argv[])
     }
 
     paramFileName = opt.getArgs()[0];
-    thinning      = opt.optionValue<Index>("t");
     svdTol        = opt.optionValue<double>("svd");
     doCorr        = !opt.gotOption("uncorr");
     doGlob        = opt.gotOption("g");
@@ -75,14 +67,43 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    // load correlators ////////////////////////////////////////////////////////
-    Index nSample, filenum, nd = 3, plotMin, plotMax, nPar;
-    Latan::XmlReader paramFile(paramFileName);
-    string fitfunction, modelprefix, model;
-    std::vector<string> corrFileNames, massFileNames;
-    std::vector<double> corrSpacings;
-    std::vector<int> corrVolumes;
-    model = paramFile.getFirstValue<string>("fitfunction", "model");
+    // read parameter file ////////////////////////////////////////////////////////
+    Index               nSample, filenum;
+    Latan::XmlReader    paramFile(paramFileName);
+    string              fitfunction, modelprefix, model;
+    vector<string>      corrFileNames, massFileNames;
+    vector<double>      corrSpacings;
+    vector<int>         corrVolumes;
+
+    model             = paramFile.getFirstValue<string>("fitfunction", "model");
+    modelprefix       = "model_" + model;
+    savePlotPrefix    = paramFile.getFirstValue<string>("saveplotdir", "dir");
+    corrFileNames     = paramFile.getAllValues<string>("filenames", "file");
+    massFileNames     = paramFile.getAllValues<string>("masses", "massfile");
+    corrSpacings      = paramFile.getAllValues<double>("spacings","ag");
+    corrVolumes       = paramFile.getAllValues<int>("volumes","gL");
+    filenum           = corrFileNames.size();
+    if (corrFileNames.size()!=massFileNames.size() && massFileNames.size()!=corrSpacings.size() && corrSpacings.size()!=corrVolumes.size())
+    {
+      cerr << "Wrong file number in parameter file." << endl;
+      return EXIT_FAILURE;
+    }
+    
+    // load correlator files ////////////////////////////////////////////////////////
+
+    vector<DMatSample>      corrSample(filenum);
+    vector<DSample>         massSample(filenum);
+    for (int i = 0; i < corrFileNames.size(); i++)
+    {
+      corrSample[i] =  Io::load<DMatSample>(corrFileNames[i]);
+      massSample[i] =  Io::load<DSample>(massFileNames[i]);
+    }
+    nSample         = corrSample[0].size();
+    
+
+    // make model //////////////////////////////////////////////////////////////
+    DoubleModel modGlobal;
+    Index       nPar, nArg;
     if (model == "1")
     {
       nPar = 1;
@@ -103,41 +124,16 @@ int main(int argc, char *argv[])
       cerr << "model not defined" << endl;
       return EXIT_FAILURE;
     }
-    modelprefix       = "model_" + model;
-    savePlotPrefix    = paramFile.getFirstValue<string>("saveplotdir", "dir");
-    corrFileNames     = paramFile.getAllValues<string>("filenames", "file");
-    massFileNames     = paramFile.getAllValues<string>("masses", "massfile");
-    corrSpacings      = paramFile.getAllValues<double>("spacings","ag");
-    corrVolumes       = paramFile.getAllValues<int>("volumes","gL");
-    filenum           = corrFileNames.size();
-    if (corrFileNames.size()!=massFileNames.size() && massFileNames.size()!=corrSpacings.size() && corrSpacings.size()!=corrVolumes.size())
-    {
-      cerr << "Wrong file number in parameter file." << endl;
-      return EXIT_FAILURE;
-    }
-    cout << "filenum = " << filenum << endl;
-    std::vector<DMatSample> corrSample(filenum);
-    std::vector<DSample> massSample(filenum);
-    for (int i = 0; i < corrFileNames.size(); i++)
-    {
-      corrSample[i] =  Io::load<DMatSample>(corrFileNames[i]);
-      massSample[i] =  Io::load<DSample>(massFileNames[i]);
-    }
-    nSample = corrSample[0].size();
-    
-
-    // make model //////////////////////////////////////////////////////////////
-    DoubleModel modGlobal;
-    int nArg = 3; //
-    modGlobal = compile(fitfunction, nArg, nPar);
+    nArg        = 3; 
+    modGlobal   = compile(fitfunction, nArg, nPar);
 
     // fit /////////////////////////////////////////////////////////////////////
-    XYSampleData data(nSample);
-    SampleFitResult fit;
-    DVec init(nPar);
-    NloptMinimizer globMin(NloptMinimizer::Algorithm::GN_CRS2_LM);
-    MinuitMinimizer locMin;
-    vector<Minimizer *> unCorrMin{&globMin, &locMin};
+    XYSampleData         data(nSample);
+    SampleFitResult      fit;
+    DVec                 init(nPar);
+    NloptMinimizer       globMin(NloptMinimizer::Algorithm::GN_CRS2_LM);
+    MinuitMinimizer      locMin;
+    vector<Minimizer *>  unCorrMin{&globMin, &locMin};
 
     //add fit dimensions and range///////////////////////////////////////////////
     data.addXDim(filenum, "m2", false);
@@ -161,8 +157,6 @@ int main(int argc, char *argv[])
     {
         modGlobal.parName().setName(p, "p_" + strFrom(p));
     }
-
-    //set initial values ////////////////
 
     // set limits for minimiser //////////////
     for (Index p = 0; p < nPar; p++)
@@ -219,8 +213,6 @@ int main(int argc, char *argv[])
             cout << "-- correlated fit..." << endl;
             data.assumeYYCorrelated(true, 0, 0);
             fit = data.fit(locMin, init, modGlobal);
-
-
             fit.print();
         }
     
