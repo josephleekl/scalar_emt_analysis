@@ -13,7 +13,7 @@ mkdir -p plots/flowtime-fit
 mkdir -p plots/global-fit
 
 echo "Performing Fourier transform on 2-point functions..."
-find ./data/raw_data -name *wilson_twopt*.h5 -execdir latan-sample-ft -o ../../../../processed_data/fft_correlator/fft_{} {} \; 1>/dev/null
+find ./data/scalar_emt_raw_data -name *wilson_twopt*.h5 -execdir latan-sample-ft -o ../../../../processed_data/fft_correlator/fft_{} {} \; 1>/dev/null
 
 echo "Preprocessing c3 data against flowtime..."
 for L in 64 128 256; do
