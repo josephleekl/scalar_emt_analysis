@@ -12,7 +12,7 @@ three-dimensional scalar SU(N) theories using the Wilson flow"*
 
 by: Luigi Del Debbio, Elizabeth Dobson, Andreas Jüttner, Ben Kitching-Morley, Joseph K. L. Lee, Valentin Nourry, Antonin Portelli, Henrique Bergallo Rocha, and Kostas Skenderis
 
-Abstract: A non-perturbative determination of the energy-momentum tensor is essential for understanding the physics of strongly coupled systems. The ability of the Wilson Flow to eliminate divergent contact terms makes it a practical method for renormalising the energy-momentum tensor on the lattice. In this paper, we utilise the Wilson Flow to define a procedure to renormalise the energy-momentum tensor for a threedimensional massless scalar field in the adjoint of SU(N) with a phi^4 interaction on the lattice. In this theory the energy momentum tensor can mix with phi^2 and we present numerical results for the mixing coefficient for the N = 2 theory.
+**Abstract:** A non-perturbative determination of the energy-momentum tensor is essential for understanding the physics of strongly coupled systems. The ability of the Wilson Flow to eliminate divergent contact terms makes it a practical method for renormalising the energy-momentum tensor on the lattice. In this paper, we utilise the Wilson Flow to define a procedure to renormalise the energy-momentum tensor for a threedimensional massless scalar field in the adjoint of SU(N) with a phi^4 interaction on the lattice. In this theory the energy momentum tensor can mix with phi^2 and we present numerical results for the mixing coefficient for the N = 2 theory.
 
 ## Installation
 - Install [Grid](https://github.com/paboyle/Grid) and [LatAnalyze](https://github.com/aportelli/LatAnalyze), both on the `develop` branch.
