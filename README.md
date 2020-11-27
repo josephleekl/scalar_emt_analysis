@@ -44,7 +44,7 @@ The directory `data-analysis` contains 3 scripts:
 
 
 ## Usage
-The data required for the analysis can be downloaded from zenodo.org under DOI 10.5281/zenodo.4271887:
+The data required for the analysis can be downloaded from zenodo.org under DOI 10.5281/zenodo.4290392:
 - Download raw data from Zenodo, and copy to the directory  `data-analysis/data/scalar_emt_raw_data/`
 - Run `make-dat.sh` to pre-process data. 
 - Run `emt-flowtime-fit.sh` to produce the fit against flowtime for each ensemble (used in Table III and Fig. 2). The results for the fits are used in the global fit in the next step, and are stored in `data/processed_data/global_fit_data/`. The parameters for the fits are found in `data/param/flowtime-fit/`, and can be altered manually. By adding the flag `-d` to the executable, the default value will be used to reproduce the results found in the paper. The plots are saved in `data/plots/flowtime-fit/`.
